@@ -1,0 +1,79 @@
+//@version=4
+strategy("EVWMA Long and Short", overlay=true)
+
+// EVWMA 1 ve EVWMA 2 Uzunluk Ayarları
+uzunluk1 = input(20, title="EVWMA 1 Uzunluk")
+uzunluk2 = input(50, title="EVWMA 2 Uzunluk")
+
+// Long İşlemler Ayarları
+longRiskPercentage = input(5, title="Long Sermayenin Yüzdesi (%)", group="Long İşlemler") / 100
+longTP1Percent = input(6, title="Long Take Profit 1 (%)", group="Long İşlemler") / 100
+longTP2Percent = input(7, title="Long Take Profit 2 (%)", group="Long İşlemler") / 100
+longCancelPercent = input(3, title="Long Cancel Yüzdesi (%)", group="Long İşlemler") / 100
+
+// Short İşlemler Ayarları
+shortRiskPercentage = input(5, title="Short Sermayenin Yüzdesi (%)", group="Short İşlemler") / 100
+shortTP1Percent = input(6, title="Short Take Profit 1 (%)", group="Short İşlemler") / 100
+shortTP2Percent = input(7, title="Short Take Profit 2 (%)", group="Short İşlemler") / 100
+shortCancelPercent = input(3, title="Short Cancel Yüzdesi (%)", group="Short İşlemler") / 100
+
+// Kullanıcıdan x değeri alma
+xValue = input(1, title="X Değeri")
+
+emrCV = false
+
+// EVWMA Hesaplama Fonksiyonu
+calc_evwma(price, nb_floating_shares) =>
+    var float data = na
+    if (na(data))
+        data := price
+    else
+        data := (nz(data[1]) * (nb_floating_shares - volume) / nb_floating_shares) + (volume * price / nb_floating_shares)
+    data
+
+// EVWMA 1 ve EVWMA 2 Hesaplamaları
+nbfs1 = emrCV ? cum(volume) : sum(volume, uzunluk1)
+nbfs2 = emrCV ? cum(volume) : sum(volume, uzunluk2)
+
+moving1 = calc_evwma(close, nbfs1)
+moving2 = calc_evwma(close, nbfs2)
+
+// EVWMA Çizim
+plot(moving1, color=color.blue, linewidth=2, title="EVWMA 1")
+plot(moving2, color=color.red, linewidth=2, title="EVWMA 2")
+
+// Kesişimler
+crossover1 = crossover(moving1, moving2)
+crossunder1 = crossunder(moving1, moving2)
+
+// Pozisyon Kontrolü
+isLongOpen = strategy.position_size > 0
+isShortOpen = strategy.position_size < 0
+
+// Long işlemleri
+if (crossover1 and not isLongOpen and not isShortOpen)
+    qty = strategy.equity * longRiskPercentage / close * xValue
+    tp1Price = close * (1 + longTP1Percent)
+    tp2Price = close * (1 + longTP2Percent)
+    strategy.entry("Long", strategy.long, qty=qty)
+    strategy.exit("TP1", "Long", qty=qty / 2, limit=tp1Price)
+    strategy.exit("TP2", "Long", qty=strategy.position_size, limit=tp2Price)
+
+if (isLongOpen)
+    cancelLongCondition = close <= strategy.position_avg_price * (1 - longCancelPercent)
+    if (cancelLongCondition)
+        strategy.close("Long", comment="Long Cancelled")
+
+// Short işlemleri
+if (crossunder1 and not isShortOpen and not isLongOpen)
+    qty = strategy.equity * shortRiskPercentage / close * xValue
+    tp1Price = close * (1 - shortTP1Percent)
+    tp2Price = close * (1 - shortTP2Percent)
+    strategy.entry("Short", strategy.short, qty=qty)
+    strategy.exit("TP1", "Short", qty=qty / 2, limit=tp1Price)
+    strategy.exit("TP2", "Short", qty=strategy.position_size, limit=tp2Price)
+
+if (isShortOpen)
+    cancelShortCondition = close >= strategy.position_avg_price * (1 + shortCancelPercent)
+    if (cancelShortCondition)
+        strategy.close("Short", comment="Short Cancelled")
