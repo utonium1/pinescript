@@ -77,3 +77,6 @@ if (isShortOpen)
     cancelShortCondition = close >= strategy.position_avg_price * (1 + shortCancelPercent)
     if (cancelShortCondition)
         strategy.close("Short", comment="Short Cancelled")
+
+
+abi selam stratejimde tp1 sonrasında 2. bir stoploss oluşturmaya çalışıyorum ancak yapamadım .ilgini çekiyor ise @hyugakoji twitterdan ulaşırsan sevinirim ben sana yazamıyorum :))
